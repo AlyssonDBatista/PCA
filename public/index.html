@@ -425,27 +425,34 @@ const BYID={};Q.forEach(q=>{q.id=qid(q[1]);BYID[q.id]=q});
 const KH='pca10_hist_v1',KE='pca10_erros_v1',KS='pca10_andamento_v1';
 const get=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
 const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
-const errs=()=>{const e=get(KE,{});return Object.keys(e).filter(i=>BYID[i])};
+const isObj=v=>v!==null&&typeof v=="object"&&!Array.isArray(v);
+const esc=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+const getE=()=>{const e=get(KE,{});return isObj(e)?e:{}};
+const getH=()=>{const h=get(KH,[]);return Array.isArray(h)?h.filter(x=>isObj(x)&&Number.isFinite(x.t)&&Number.isFinite(+x.p)):[]};
+const errs=()=>Object.keys(getE()).filter(i=>BYID[i]);
 const $=s=>document.querySelector(s);
 const sh=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const L="ABCD";
 let S=null,T=null,confirmClear=false,confirmEnd=false;
 const save=()=>{if(S&&!S.res)put(KS,{mode:S.mode,lab:S.lab,i:S.i,end:S.end,l:S.l.map(it=>({id:it.q.id,o:it.o.map(o=>it.q[2].indexOf(o[0])),a:it.a}))})};
 const drop=()=>{try{localStorage.removeItem(KS)}catch(e){}};
-function saved(){const v=get(KS,null);if(!v||!v.l)return null;const l=v.l.filter(x=>BYID[x.id]).map(x=>{const q=BYID[x.id];return{q,o:x.o.map(j=>[q[2][j],j==0]),a:x.a}});if(l.length!=v.l.length||!l.length){drop();return null}return{...v,l}}
+function saved(){const v=get(KS,null);const okO=o=>Array.isArray(o)&&o.length==4&&new Set(o).size==4&&o.every(j=>Number.isInteger(j)&&j>=0&&j<4);
+  if(!isObj(v)||!Array.isArray(v.l)||!["exam","mod","all","err"].includes(v.mode)||!Number.isFinite(v.end)||!Number.isInteger(v.i)||!v.l.every(x=>isObj(x)&&okO(x.o)&&(x.a===null||(Number.isInteger(x.a)&&x.a>=0&&x.a<4)))){if(v!==null)drop();return null}
+  const l=v.l.filter(x=>BYID[x.id]).map(x=>{const q=BYID[x.id];return{q,o:x.o.map(j=>[q[2][j],j==0]),a:x.a}});if(l.length!=v.l.length||!l.length){drop();return null}return{...v,l}}
 function resume(){const v=saved();if(!v)return home();S={mode:v.mode,lab:v.lab,i:Math.min(v.i,v.l.length-1),end:v.end,l:v.l};confirmClear=false;confirmEnd=false;if(S.mode=="exam"&&S.end<=Date.now())return fin();show(true)}
 function discard(){drop();home()}
 function prev(){if(S.i>0){S.i--;confirmEnd=false;save();show(true);scrollTo(0,0)}}
+const hold=()=>{const a=$("#app");a.style.pointerEvents="none";setTimeout(()=>a.style.pointerEvents="",400)};
 const fmtLeft=r=>{const m=Math.max(0,Math.floor(r/60000));return Math.floor(m/60)+"h"+String(m%60).padStart(2,"0")};
 const fmtD=t=>{const d=new Date(t);return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")};
 
 function home(){
   clearInterval(T);S=null;confirmEnd=false;
-  const H=get(KH,[]),E=errs(),cnt=M.map((_,k)=>Q.filter(q=>q[0]==k).length);
-  const hist=H.length?H.slice(0,5).map(h=>`<div class="row"><span>${fmtD(h.t)} · ${h.lab}</span><strong class="${h.m=='exam'?(h.ok?'okt':'not'):''}">${h.c!=null&&h.n?h.c+'/'+h.n+' · ':''}${String(h.p).replace('.',',')}%${h.m=='exam'?(h.ok?' · aprovado':' · reprovado'):''}</strong></div>`).join(""):`<p class="mut small">Nenhuma tentativa ainda. Faça uma prova ou um treino e o resultado aparece aqui.</p>`;
+  const H=getH(),E=errs(),cnt=M.map((_,k)=>Q.filter(q=>q[0]==k).length);
+  const hist=H.length?H.slice(0,5).map(h=>`<div class="row"><span>${fmtD(h.t)} · ${esc(h.lab)}</span><strong class="${h.m=='exam'?(h.ok?'okt':'not'):''}">${Number.isFinite(h.c)&&Number.isFinite(h.n)&&h.n?h.c+'/'+h.n+' · ':''}${esc(String(+h.p).replace('.',','))}%${h.m=='exam'?(h.ok?' · aprovado':' · reprovado'):''}</strong></div>`).join(""):`<p class="mut small">Nenhuma tentativa ainda. Faça uma prova ou um treino e o resultado aparece aqui.</p>`;
   const R0=saved(),ans=R0?R0.l.filter(x=>x.a!==null).length:0,left=R0&&R0.mode=="exam"?R0.end-Date.now():0;
   const clear=confirmClear?`<div class="confirm"><span>Apagar o histórico, os erros e a prova em andamento salvos neste aparelho?</span><button class="btn-line" onclick="clearAll()">Apagar</button><button class="btn-quiet" onclick="confirmClear=false;home()">Cancelar</button></div>`:(H.length||E.length||R0?`<button class="btn-quiet" style="align-self:flex-start" onclick="confirmClear=true;home()">Apagar meu histórico</button>`:"");
-  const res=R0?`<section class="sheet resume"><div class="row"><h2>${R0.mode=="exam"?"Prova em andamento":"Treino em andamento"}</h2><span class="tiny mut">${R0.lab}</span></div>
+  const res=R0?`<section class="sheet resume"><div class="row"><h2>${R0.mode=="exam"?"Prova em andamento":"Treino em andamento"}</h2><span class="tiny mut">${esc(R0.lab)}</span></div>
     <p class="small">${ans} de ${R0.l.length} respondidas${R0.mode=="exam"?(left>0?` · restam ${fmtLeft(left)} de prova`:" · o tempo acabou: ao continuar, a prova é corrigida"):""}.</p>
     <div class="nav"><button class="btn" onclick="resume()">Continuar ${R0.mode=="exam"?"a prova":"o treino"}</button><button class="btn-quiet" onclick="discard()">Descartar</button></div></section>`:"";
   $("#app").innerHTML=`
@@ -486,7 +493,7 @@ function start(mode,k){
 function show(focus){
   const it=S.l[S.i],n=S.l.length,last=S.i==n-1,exam=S.mode=="exam";
   $("#app").innerHTML=`
-  <div class="top"><span>${S.lab}</span><span>${S.i+1} de ${n}</span></div>
+  <div class="top"><span>${esc(S.lab)}</span><span>${S.i+1} de ${n}</span></div>
   ${exam?`<div class="top"><span class="small">Ao avançar, não é possível voltar</span><span class="clock" id="tm">--:--</span></div>`:""}
   <div class="track" aria-hidden="true"><div style="width:${(S.i/n*100).toFixed(1)}%"></div></div>
   <span class="tag">${M[it.q[0]]}</span>
@@ -499,7 +506,7 @@ function show(focus){
   <p class="kbd"><span class="keys">Atalhos: teclas A a D (ou 1 a 4) para marcar e Enter para avançar. </span>Seu progresso fica salvo neste aparelho.</p>
   ${confirmEnd?`<div class="confirm"><span>${exam?"Encerrar a prova agora? As questões sem resposta contam como erradas.":"Encerrar o treino e ver o resultado das respondidas?"}</span><button class="btn-line" onclick="fin()">Encerrar</button><button class="btn-quiet" onclick="confirmEnd=false;show()">Continuar</button></div>`:`<button class="btn-quiet" style="align-self:flex-start" onclick="confirmEnd=true;show()">Encerrar ${exam?"a prova":"o treino"}</button>`}`;
   tick();
-  if(focus)$(".qtext").focus({preventScroll:true});
+  if(focus){hold();$(".qtext").focus({preventScroll:true})}
 }
 function pick(j){S.l[S.i].a=j;document.querySelectorAll(".opt").forEach((b,k)=>b.setAttribute("aria-pressed",k===j));$("#nx").disabled=false;save()}
 function nxt(){if(S.l[S.i].a===null)return;if(S.i<S.l.length-1){S.i++;confirmEnd=false;save();show(true);scrollTo(0,0)}else fin()}
@@ -511,6 +518,7 @@ function tick(){
 }
 const isOk=it=>it.a!==null&&it.o[it.a][1];
 function fin(){
+  if(!S||S.res)return;
   clearInterval(T);confirmEnd=false;drop();
   const exam=S.mode=="exam",use=exam?S.l:S.l.filter(it=>it.a!==null);
   if(!use.length)return home();
@@ -518,10 +526,10 @@ function fin(){
   const c=use.filter(isOk).length;let p,ok=null,zero=false;
   if(exam){let w=0,s=0;mods.forEach(([n,cc],k)=>{if(n){w+=W[k];s+=W[k]*cc/n;if(!cc)zero=true}});p=Math.round(s/w*1000)/10;ok=p>=70&&!zero}
   else p=Math.round(c/use.length*1000)/10;
-  const E=get(KE,{});let added=0;
+  const E=getE();let added=0;
   use.forEach(it=>{if(isOk(it))delete E[it.q.id];else{if(!E[it.q.id])added++;E[it.q.id]=Date.now()}});
   put(KE,E);
-  const H=get(KH,[]);H.unshift({t:Date.now(),m:exam?"exam":"train",lab:S.lab,n:use.length,c,p,ok,mods});put(KH,H.slice(0,50));
+  const H=getH();H.unshift({t:Date.now(),m:exam?"exam":"train",lab:S.lab,n:use.length,c,p,ok,mods});put(KH,H.slice(0,50));
   S.res={use,mods,c,p,ok,zero,added,exam};S.f=0;review(true);
 }
 function review(top){
@@ -529,7 +537,7 @@ function review(top){
   const zn=R.mods.map(([n,c],k)=>n&&!c?M[k]:null).filter(Boolean);
   const pq=M.map((m,k)=>`${m} ${(W[k]/N[k]).toLocaleString("pt-BR",{maximumFractionDigits:2})} pt`).join(" · ");
   const head=R.exam?`<section class="sheet result ${R.ok?"pass":"fail"}"><span class="eyebrow">${R.ok?"Aprovado no simulado":"Reprovado no simulado"}</span><span class="score">${R.c} de ${R.use.length}</span><p class="small"><strong>${R.p.toLocaleString("pt-BR")}%</strong> na nota ponderada</p>${R.zero?`<p class="small"><strong>Sem acertos em ${zn.join(" e ")}.</strong> Módulo zerado reprova, mesmo com nota acima de 70%.</p>`:""}<p class="small mut">Aprovação com 70% e nenhum módulo zerado. Os módulos valem 24, 26, 25 e 25 pontos, mas têm números diferentes de questões, então cada questão pesa: ${pq}. Por isso a nota ponderada pode ficar diferente da proporção de acertos.</p></section>`
-    :`<section class="sheet result"><span class="eyebrow">${S.lab}</span><span class="score">${R.c} de ${R.use.length}</span><p class="small mut">${R.p.toLocaleString("pt-BR")}% de acertos nas questões respondidas.</p></section>`;
+    :`<section class="sheet result"><span class="eyebrow">${esc(S.lab)}</span><span class="score">${R.c} de ${R.use.length}</span><p class="small mut">${R.p.toLocaleString("pt-BR")}% de acertos nas questões respondidas.</p></section>`;
   const mods=R.mods.map(([n,c],k)=>n?`<div class="mrow"><div class="lbl"><span>${M[k]}</span><b>${c} de ${n}</b></div><div class="mbar"><div class="${c?"":"zero"}" style="width:${c?c/n*100:4}%"></div></div></div>`:"").join("");
   const wrong=R.use.filter(it=>!isOk(it)).length,right=R.use.length-wrong;
   const F=[["Todas",R.use.length],["Erradas ou em branco",wrong],["Acertos",right]];
@@ -546,7 +554,7 @@ function review(top){
   <section class="stack"><h2>Gabarito comentado</h2>
     <div class="filters" role="group" aria-label="Filtrar questões">${F.map(([t,c],i)=>`<button class="chip" aria-pressed="${S.f==i}" onclick="S.f=${i};review()">${t} (${c})</button>`).join("")}</div>
     ${list}</section>`;
-  if(top)scrollTo(0,0);
+  if(top){hold();scrollTo(0,0)}
 }
 document.addEventListener("keydown",e=>{
   if(!S||S.res||e.ctrlKey||e.metaKey||e.altKey)return;
@@ -555,7 +563,7 @@ document.addEventListener("keydown",e=>{
   if(e.key=="Enter"&&!(e.target&&e.target.tagName=="BUTTON")&&S.l[S.i].a!==null){e.preventDefault();nxt()}
 });
 addEventListener("beforeunload",e=>{if(S&&!S.res&&S.mode=="exam"){e.preventDefault();e.returnValue=""}});
-home();
+try{home()}catch(e){try{[KH,KE,KS].forEach(k=>localStorage.removeItem(k))}catch(_){}S=null;home()}
 </script>
 </body>
 </html>
