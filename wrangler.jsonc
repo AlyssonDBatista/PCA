@@ -1,12 +1,12 @@
 {
-  // Worker do Simulado PCA-10: serve os arquivos estáticos da pasta public/.
+  // Worker do Simulado PCA-10: serve os arquivos estáticos da pasta docs/.
   // O nome precisa ser o mesmo do Worker já publicado para manter o endereço
   // https://simuladopca10.alyssondbatista.workers.dev/
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "simuladopca10",
   "compatibility_date": "2026-11-01",
   "assets": {
-    "directory": "./public",
+    "directory": "./docs",
     "not_found_handling": "single-page-application"
   }
 }

@@ -2,16 +2,21 @@
 
 Simulado não oficial da certificação PCA-10 da ABAC: 50 questões sorteadas a cada tentativa, 120 minutos, nota ponderada por módulo (aprovação com 70% e nenhum módulo zerado), gabarito comentado e treino dos erros.
 
-Site: https://simuladopca10.alyssondbatista.workers.dev/
+Site: https://alyssondbatista.github.io/PCA/ (GitHub Pages)
+
+Também publicado em https://simuladopca10.alyssondbatista.workers.dev/ (Cloudflare Workers)
 
 ## Estrutura
 
-- `public/index.html`: o site inteiro (HTML, CSS, JavaScript e o banco de questões no array `Q`).
-- `wrangler.jsonc`: configuração do Cloudflare Worker que serve a pasta `public/`.
+- `docs/index.html`: o site inteiro (HTML, CSS, JavaScript e o banco de questões no array `Q`).
+- `wrangler.jsonc`: configuração do Cloudflare Worker que serve a pasta `docs/`.
 
 ## Publicação
 
-O Cloudflare Workers Builds está ligado a este repositório: cada commit no branch `main` publica o site automaticamente (`npx wrangler deploy`).
+Cada commit no branch `main` publica o site em dois lugares:
+
+- GitHub Pages, a partir da pasta `docs/` (Settings → Pages → Deploy from a branch → `main` / `/docs`).
+- Cloudflare Workers Builds (`npx wrangler deploy`), que serve a mesma pasta `docs/` com os cabeçalhos de `docs/_headers`.
 
 ## Formato das questões
 
